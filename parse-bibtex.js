@@ -2,11 +2,12 @@
 //
 // CommonJS port by Mikola Lysenko 2013
 //
-//
+// Update by Xavier Trochu <xavier.trochu@edpsciences.org> 2016:
+//  allow a non strict mode which accepts simple strings without quotes as value.
+//  add some other options for the parser
 
 // Issues:
 //  no comment handling within strings
-//  no string concatenation
 //  no variable values yet
 
 // Grammar implemented here:
@@ -20,16 +21,31 @@
 //  value -> value_quotes | value_braces | key;
 //  value_quotes -> '"' .*? '"'; // not quite
 //  value_braces -> '{' .*? '"'; // not quite
-function BibtexParser() {
-  this.pos = 0;
-  this.input = "";
-  
-  this.entries = {};
-  this.comments = [];
-  this.strings = {
+(function () {
+  "use strict";
+
+  var defaults = {
+    strict: true,
+    key_rx: /[a-zA-Z0-9_:\\./\-+;'"&]/,
+    key_transform: function (s) { return s.toUpperCase() },
+    directive_transform: function (s) { return s.toUpperCase() },
+    type_key: 'entryType',
+    return_comments: true
+  };
+
+  function BibtexParser(opts) {
+
+    var k;
+    for (k in defaults) {
+      this[k] = typeof opts !== "undefined" && opts !== null && typeof opts[k] !== "undefined" ? opts[k] : defaults[k];
+    }
+
+    this.entries = {};
+    this.comments = [];
+    this.strings = {
       JAN: "January",
       FEB: "February",
-      MAR: "March",      
+      MAR: "March",
       APR: "April",
       MAY: "May",
       JUN: "June",
@@ -39,24 +55,19 @@ function BibtexParser() {
       OCT: "October",
       NOV: "November",
       DEC: "December"
-  };
-  this.currentKey = "";
-  this.currentEntry = "";
-  
+    };
+  }
 
-  this.setInput = function(t) {
+  BibtexParser.prototype.setInput = function(t) {
     this.input = t;
-  }
-  
-  this.getEntries = function() {
-      return this.entries;
-  }
+    this.pos = 0;
+  };
 
-  this.isWhitespace = function(s) {
+  BibtexParser.prototype.isWhitespace = function(s) {
     return (s == ' ' || s == '\r' || s == '\t' || s == '\n');
-  }
+  };
 
-  this.match = function(s) {
+  BibtexParser.prototype.match = function(s) {
     this.skipWhitespace();
     if (this.input.substring(this.pos, this.pos+s.length) == s) {
       this.pos += s.length;
@@ -64,31 +75,26 @@ function BibtexParser() {
       throw "Token mismatch, expected " + s + ", found " + this.input.substring(this.pos);
     }
     this.skipWhitespace();
-  }
+  };
 
-  this.tryMatch = function(s) {
+  BibtexParser.prototype.tryMatch = function(s) {
     this.skipWhitespace();
-    if (this.input.substring(this.pos, this.pos+s.length) == s) {
-      return true;
-    } else {
-      return false;
-    }
-    this.skipWhitespace();
-  }
+    return this.input.substring(this.pos, this.pos + s.length) == s;
+  };
 
-  this.skipWhitespace = function() {
-    while (this.isWhitespace(this.input[this.pos])) {
+  BibtexParser.prototype.skipWhitespace = function() {
+    while (this.pos < this.input.length && this.isWhitespace(this.input[this.pos])) {
       this.pos++;
     }
     if (this.input[this.pos] == "%") {
-      while(this.input[this.pos] != "\n") {
+      while(this.pos < this.input.length && this.input[this.pos] != "\n") {
         this.pos++;
       }
       this.skipWhitespace();
     }
-  }
+  };
 
-  this.value_braces = function() {
+  BibtexParser.prototype.value_braces = function() {
     var bracecount = 0;
     this.match("{");
     var start = this.pos;
@@ -108,9 +114,9 @@ function BibtexParser() {
       }
       this.pos++;
     }
-  }
+  };
 
-  this.value_quotes = function() {
+  BibtexParser.prototype.value_quotes = function() {
     this.match('"');
     var start = this.pos;
     while(true) {
@@ -123,9 +129,9 @@ function BibtexParser() {
       }
       this.pos++;
     }
-  }
-  
-  this.single_value = function() {
+  };
+
+  BibtexParser.prototype.single_value = function() {
     var start = this.pos;
     if (this.tryMatch("{")) {
       return this.value_braces();
@@ -135,15 +141,15 @@ function BibtexParser() {
       var k = this.key();
       if (this.strings[k.toUpperCase()]) {
         return this.strings[k];
-      } else if (k.match("^[0-9]+$")) {
+      } else if (!this.strict || k.match(/^[0-9]+$/)) {
         return k;
       } else {
         throw "Value expected:" + this.input.substring(start);
       }
     }
-  }
-  
-  this.value = function() {
+  };
+
+  BibtexParser.prototype.value = function() {
     var values = [];
     values.push(this.single_value());
     while (this.tryMatch("#")) {
@@ -151,24 +157,27 @@ function BibtexParser() {
       values.push(this.single_value());
     }
     return values.join("");
-  }
+  };
 
-  this.key = function() {
+  BibtexParser.prototype.key = function(no_transform) {
     var start = this.pos;
     while(true) {
       if (this.pos == this.input.length) {
         throw "Runaway key";
       }
     
-      if (this.input[this.pos].match("[a-zA-Z0-9_:\\./-]")) {
+      if (this.input[this.pos].match(this.key_rx)) {
         this.pos++
       } else {
-        return this.input.substring(start, this.pos).toUpperCase();
+        var key = this.input.substring(start, this.pos);
+        if (!no_transform && this.key_transform)
+          key = this.key_transform(key);
+        return key;
       }
     }
-  }
+  };
 
-  this.key_equals_value = function() {
+  BibtexParser.prototype.key_equals_value = function() {
     var key = this.key();
     if (this.tryMatch("=")) {
       this.match("=");
@@ -177,11 +186,11 @@ function BibtexParser() {
     } else {
       throw "... = value expected, equals sign missing:" + this.input.substring(this.pos);
     }
-  }
+  };
 
-  this.key_value_list = function() {
+  BibtexParser.prototype.key_value_list = function(entry) {
     var kv = this.key_equals_value();
-    this.entries[this.currentEntry][kv[0]] = kv[1];
+    entry[kv[0]] = kv[1];
     while (this.tryMatch(",")) {
       this.match(",");
       // fixes problems with commas at the end of a list
@@ -189,32 +198,35 @@ function BibtexParser() {
         break;
       }
       kv = this.key_equals_value();
-      this.entries[this.currentEntry][kv[0]] = kv[1];
+      entry[kv[0]] = kv[1];
     }
-  }
+  };
 
-  this.entry_body = function(d) {
-    this.currentEntry = this.key();
-    this.entries[this.currentEntry] = { entryType: d.substring(1) };
+  BibtexParser.prototype.entry_body = function(directive) {
+    var key = this.key();
+    var body = {};
+    body[this.type_key] = directive.substring(1);
+    this.entries[key] = body;
     this.match(",");
-    this.key_value_list();
-  }
+    this.key_value_list(body);
+  };
 
-  this.directive = function () {
+  BibtexParser.prototype.directive = function () {
     this.match("@");
-    return "@"+this.key();
-  }
+    var key = this.key(true);
+    return "@"+key;
+  };
 
-  this.string = function () {
+  BibtexParser.prototype.string = function () {
     var kv = this.key_equals_value();
     this.strings[kv[0].toUpperCase()] = kv[1];
-  }
+  };
 
-  this.preamble = function() {
+  BibtexParser.prototype.preamble = function() {
     this.value();
-  }
+  };
 
-  this.comment = function() {
+  BibtexParser.prototype.comment = function() {
     var start = this.pos;
     while(true) {
       if (this.pos == this.input.length) {
@@ -228,15 +240,16 @@ function BibtexParser() {
         return;
       }
     }
-  }
+  };
 
-  this.entry = function(d) {
-    this.entry_body(d);
-  }
+  BibtexParser.prototype.entry = function(directive) {
+    this.entry_body(directive);
+  };
 
-  this.bibtex = function() {
+  BibtexParser.prototype.bibtex = function() {
     while(this.tryMatch("@")) {
-      var d = this.directive().toUpperCase();
+      var directive = this.directive();
+      var d = directive.toUpperCase();
       this.match("{");
       if (d == "@STRING") {
         this.string();
@@ -245,21 +258,24 @@ function BibtexParser() {
       } else if (d == "@COMMENT") {
         this.comment();
       } else {
-        this.entry(d);
+        if (this.directive_transform)
+          directive = this.directive_transform(directive);
+        this.entry(directive);
       }
       this.match("}");
     }
 
-    this.entries['@comments'] = this.comments;
+    if (this.return_comments)
+      this.entries['@comments'] = this.comments;
+  };
+
+  //Runs the parser
+  function doParse(input, opts) {
+    var b = new BibtexParser(opts);
+    b.setInput(input);
+    b.bibtex();
+    return b.entries
   }
-}
 
-//Runs the parser
-function doParse(input) {
-  var b = new BibtexParser()
-  b.setInput(input)
-  b.bibtex()
-  return b.entries
-}
-
-module.exports = doParse
+  module.exports = doParse;
+})();

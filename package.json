@@ -6,9 +6,9 @@
   "directories": {
     "test": "test"
   },
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
+    "tap": "^7.1.2",
     "tape": "~1.0.4"
   },
   "scripts": {
@@ -16,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/mikolalysenko/bibtex-parser.git"
+    "url": "git://github.com/EDP-Sciences/bibtex-parser.git"
   },
   "keywords": [
     "bibtex",
@@ -24,11 +24,11 @@
     "javascript",
     "parser"
   ],
-  "author": "Henrik Muehe",
+  "author": "Henrik Muehe, Xavier Trochu",
   "license": "MIT",
   "readmeFilename": "README.md",
   "gitHead": "12b10f4050daa9966c476853edae12108a0bab8b",
   "bugs": {
-    "url": "https://github.com/mikolalysenko/bibtex-parser/issues"
+    "url": "https://github.com/EDP-Sciences/bibtex-parser/issues"
   }
 }
