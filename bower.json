@@ -1,0 +1,26 @@
+{
+  "name": "bibtex-parser",
+  "description": "UMD port of BibTeX-js",
+  "main": "parse-bibtex.js",
+  "authors": [
+    "Henrik Muege",
+    "Xavier Trochu",
+    "Yves Delley"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "bibtex",
+    "commonjs",
+    "javascript",
+    "parser"
+  ],
+  "homepage": "https://github.com/burnpanck/bibtex-parser",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

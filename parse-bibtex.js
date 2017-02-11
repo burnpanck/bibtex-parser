@@ -21,7 +21,21 @@
 //  value -> value_quotes | value_braces | key;
 //  value_quotes -> '"' .*? '"'; // not quite
 //  value_braces -> '{' .*? '"'; // not quite
-(function () {
+
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    // AMD. Register as an anonymous module.
+    define([], factory);
+  } else if (typeof module === 'object' && module.exports) {
+    // Node. Does not work with strict CommonJS, but
+    // only CommonJS-like environments that support module.exports,
+    // like Node.
+    module.exports = factory();
+  } else {
+    // Browser globals (root is window)
+    root.BibtexParser = factory();
+  }
+}(this, function () {
   "use strict";
 
   var defaults = {
@@ -277,5 +291,5 @@
     return b.entries
   }
 
-  module.exports = doParse;
-})();
+  return doParse;
+}));
